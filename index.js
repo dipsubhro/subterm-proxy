@@ -69,6 +69,45 @@ app.use("/workspace/:sessionId", async (req, res) => {
 // ---------------------------------------------------------------------------
 const server = http.createServer(app);
 
+// WebSocket upgrade — bypasses Express routing so we parse the URL manually
+server.on("upgrade", async (req, socket, head) => {
+  const match = req.url?.match(/^\/workspace\/([^/?#]+)(\/.*)?$/);
+
+  if (!match) {
+    socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  const [, sessionId, rest = "/"] = match;
+
+  let session;
+  try {
+    session = await getSession(sessionId);
+  } catch {
+    socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  if (!session) {
+    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  const target = `http://${session.containerName}:3000`;
+
+  // Rewrite the URL to the bare path so the container sees e.g. /terminal
+  req.url = rest;
+
+  console.log(
+    `[router] WS    UPGRADE /workspace/${sessionId}${rest} → ${target}`,
+  );
+
+  proxy.ws(req, socket, head, { target });
+});
+
 // ---------------------------------------------------------------------------
 // Shutdown
 // ---------------------------------------------------------------------------
