@@ -19,6 +19,19 @@ async function getSession(sessionId) {
   return raw ? JSON.parse(raw) : null;
 }
 
+// Fire-and-forget — update lastActive without blocking the request
+function touchSession(sessionId) {
+  redis
+    .get(SESSION_KEY(sessionId))
+    .then((raw) => {
+      if (!raw) return;
+      const session = JSON.parse(raw);
+      session.lastActive = Date.now();
+      return redis.set(SESSION_KEY(sessionId), JSON.stringify(session));
+    })
+    .catch((err) => console.error("[router] touchSession error:", err.message));
+}
+
 // ---------------------------------------------------------------------------
 // Proxy
 // ---------------------------------------------------------------------------
@@ -56,6 +69,8 @@ app.use("/workspace/:sessionId", async (req, res) => {
   }
 
   const target = `http://${session.containerName}:3000`;
+
+  touchSession(sessionId); // refresh inactivity timer
 
   console.log(
     `[router] HTTP  ${req.method} /workspace/${sessionId}${req.url} → ${target}`,
@@ -97,6 +112,8 @@ server.on("upgrade", async (req, socket, head) => {
   }
 
   const target = `http://${session.containerName}:3000`;
+
+  touchSession(sessionId); // refresh inactivity timer
 
   // Rewrite the URL to the bare path so the container sees e.g. /terminal
   req.url = rest;
