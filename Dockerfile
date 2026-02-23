@@ -17,9 +17,9 @@ RUN useradd -m appuser \
   && chown -R appuser:appuser /app
 USER appuser
 
-ENV PORT=5001 \
+ENV PORT=5500 \
     NODE_ENV=production
 
-EXPOSE 5001
+EXPOSE 5500
 
 CMD ["node", "index.js"]

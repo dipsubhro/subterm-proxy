@@ -140,7 +140,7 @@ process.on("SIGTERM", shutdown);
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5500;
 server.listen(PORT, () =>
   console.log(`[router] Listening on http://0.0.0.0:${PORT}`),
 );
